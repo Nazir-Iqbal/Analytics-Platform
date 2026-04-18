@@ -26,13 +26,15 @@ def dataset_upload(request, project_pk):
 
         try:
             content = file.read()
-            df = pd.read_csv(io.BytesIO(content))
-            file.seek(0)
+            # Try decoding the file content to a string
+            content_str = content.decode('utf-8', errors='replace')
+            df = pd.read_csv(io.StringIO(content_str))
 
             dataset = Dataset.objects.create(
                 project=project,
                 name=name,
-                file=file,
+                file_name=file.name,
+                raw_data=content_str,
                 rows=len(df),
                 columns=len(df.columns),
                 column_names=list(df.columns),
@@ -48,7 +50,7 @@ def dataset_upload(request, project_pk):
 @login_required
 def dataset_preview(request, pk):
     dataset = get_object_or_404(Dataset, pk=pk, project__user=request.user)
-    df = pd.read_csv(dataset.file.path)
+    df = pd.read_csv(io.StringIO(dataset.raw_data))
 
     stats = {
         'shape': f'{df.shape[0]} rows x {df.shape[1]} columns',
@@ -72,7 +74,7 @@ def dataset_preview(request, pk):
 @login_required
 def dataset_stats(request, pk):
     dataset = get_object_or_404(Dataset, pk=pk, project__user=request.user)
-    df = pd.read_csv(dataset.file.path)
+    df = pd.read_csv(io.StringIO(dataset.raw_data))
 
     stats = {
         'shape': list(df.shape),
@@ -91,7 +93,7 @@ def dataset_handle_missing(request, pk):
     if request.method == 'POST':
         strategy = request.POST.get('strategy', 'drop')
         columns = request.POST.getlist('columns')
-        df = pd.read_csv(dataset.file.path)
+        df = pd.read_csv(io.StringIO(dataset.raw_data))
 
         if columns:
             subset = columns
@@ -114,14 +116,14 @@ def dataset_handle_missing(request, pk):
         elif strategy == 'zero':
             df[subset] = df[subset].fillna(0)
 
-        df.to_csv(dataset.file.path, index=False)
+        dataset.raw_data = df.to_csv(index=False)
         dataset.rows = len(df)
         dataset.column_names = list(df.columns)
         dataset.save()
         messages.success(request, f'Missing values handled using "{strategy}" strategy.')
         return redirect('datasets:preview', pk=dataset.pk)
 
-    df = pd.read_csv(dataset.file.path)
+    df = pd.read_csv(io.StringIO(dataset.raw_data))
     missing = df.isnull().sum()
     missing_cols = missing[missing > 0].to_dict()
     return render(request, 'datasets/handle_missing.html', {
@@ -135,7 +137,6 @@ def dataset_delete(request, pk):
     dataset = get_object_or_404(Dataset, pk=pk, project__user=request.user)
     project_pk = dataset.project.pk
     if request.method == 'POST':
-        dataset.file.delete()
         dataset.delete()
         messages.success(request, 'Dataset deleted.')
         return redirect('projects:detail', pk=project_pk)
@@ -145,7 +146,7 @@ def dataset_delete(request, pk):
 @login_required
 def dataset_columns(request, pk):
     dataset = get_object_or_404(Dataset, pk=pk, project__user=request.user)
-    df = pd.read_csv(dataset.file.path)
+    df = pd.read_csv(io.StringIO(dataset.raw_data))
     data = {
         'columns': list(df.columns),
         'dtypes': df.dtypes.astype(str).to_dict(),

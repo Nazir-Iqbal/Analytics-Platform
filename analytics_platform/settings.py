@@ -80,8 +80,9 @@ if os.environ.get('DATABASE_URL'):
         'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'), conn_max_age=600)
     }
 else:
-    # Detect Vercel environment via VERCEL_URL or VERCEL env var
-    if os.environ.get('VERCEL') or os.environ.get('VERCEL_URL'):
+    # Detect Vercel environment via env vars or by the /var/task path (AWS Lambda/Vercel)
+    is_vercel = os.environ.get('VERCEL') or os.environ.get('VERCEL_URL') or str(BASE_DIR).startswith('/var/task')
+    if is_vercel:
         tmp_db = Path('/tmp') / 'db.sqlite3'
         try:
             tmp_db.parent.mkdir(parents=True, exist_ok=True)
@@ -128,7 +129,8 @@ STORAGES = {
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 # If running on Vercel or other ephemeral host, use /tmp for media to ensure writable path
-if os.environ.get('VERCEL') or os.environ.get('VERCEL_URL'):
+is_vercel = os.environ.get('VERCEL') or os.environ.get('VERCEL_URL') or str(BASE_DIR).startswith('/var/task')
+if is_vercel:
     try:
         Path('/tmp/media').mkdir(parents=True, exist_ok=True)
         MEDIA_ROOT = Path('/tmp/media')

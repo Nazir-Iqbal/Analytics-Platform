@@ -1,3 +1,4 @@
+import io
 import json
 import pandas as pd
 from django.shortcuts import render, redirect, get_object_or_404
@@ -16,7 +17,7 @@ from .engine import (
 @login_required
 def model_select(request, dataset_pk):
     dataset = get_object_or_404(Dataset, pk=dataset_pk, project__user=request.user)
-    df = pd.read_csv(dataset.file.path)
+    df = pd.read_csv(io.StringIO(dataset.raw_data))
     columns = list(df.columns)
     numeric_cols = list(df.select_dtypes(include='number').columns)
     categorical_cols = list(df.select_dtypes(include='object').columns)
@@ -55,7 +56,7 @@ def model_train(request, dataset_pk):
         messages.error(request, 'Please select an output column.')
         return redirect('ml:select', dataset_pk=dataset.pk)
 
-    df = pd.read_csv(dataset.file.path)
+    df = pd.read_csv(io.StringIO(dataset.raw_data))
     params = {}
 
     if model_name == 'kmeans':
@@ -131,7 +132,7 @@ def model_compare(request, project_pk):
 def model_suggest(request, dataset_pk):
     dataset = get_object_or_404(Dataset, pk=dataset_pk, project__user=request.user)
     target = request.GET.get('target', '')
-    df = pd.read_csv(dataset.file.path)
+    df = pd.read_csv(io.StringIO(dataset.raw_data))
     suggestions = suggest_models(df, target if target else None)
     return JsonResponse({'suggestions': suggestions})
 
