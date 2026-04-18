@@ -9,9 +9,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-this')
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
-ALLOWED_HOSTS = [
-    h.strip() for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()
-] + ['.vercel.app']
+# Build ALLOWED_HOSTS from environment; always allow Vercel domains.
+_env_hosts = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
+# Vercel sets VERCEL_URL to the deployment hostname (e.g. my-app-xyz.vercel.app)
+_vercel = os.environ.get('VERCEL_URL')
+if _vercel:
+    _env_hosts.append(_vercel.strip())
+# Ensure wildcard for vercel subdomains
+_env_hosts.append('.vercel.app')
+# Remove duplicates while preserving order
+seen = set()
+ALLOWED_HOSTS = []
+for h in _env_hosts:
+    if h and h not in seen:
+        ALLOWED_HOSTS.append(h)
+        seen.add(h)
 
 INSTALLED_APPS = [
     'django.contrib.admin',
