@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block title %}Select Model - {{ dataset.name }}{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Train Model on "{{ dataset.name }}"</h2>
+    <p class="text-muted">{{ dataset.rows }} rows, {{ dataset.columns }} columns</p>
+
+    <div class="suggest-section">
+        <button id="suggestBtn" class="btn btn-secondary btn-sm" onclick="getSuggestions()">Suggest Models</button>
+        <div id="suggestions" class="suggestions-list"></div>
+    </div>
+
+    <form method="post" action="{% url 'ml:train' dataset_pk=dataset.pk %}" class="form" id="trainForm">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label for="task_type">Task Type</label>
+            <select id="task_type" name="task_type" onchange="updateModels()">
+                <option value="regression">Regression</option>
+                <option value="classification">Classification</option>
+                <option value="clustering">Clustering</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="model_name">Model</label>
+            <select id="model_name" name="model_name"></select>
+        </div>
+
+        <div class="form-group">
+            <label>Input Columns</label>
+            <div class="checkbox-group" id="inputColumns">
+                {% for col in columns %}
+                <label class="checkbox-label">
+                    <input type="checkbox" name="input_columns" value="{{ col }}"> {{ col }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="form-group" id="outputGroup">
+            <label for="output_column">Output Column (Target)</label>
+            <select id="output_column" name="output_column">
+                <option value="">-- Select --</option>
+                {% for col in columns %}
+                <option value="{{ col }}">{{ col }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group" id="kmeansParams" style="display:none;">
+            <label for="n_clusters">Number of Clusters</label>
+            <input type="number" id="n_clusters" name="n_clusters" value="3" min="2" max="20">
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="trainBtn">
+                <span class="btn-text">Train Model</span>
+                <span class="spinner" style="display:none;"></span>
+            </button>
+            <a href="{% url 'datasets:preview' pk=dataset.pk %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const models = {
+    regression: [
+        {% for key, name in regression_models %}
+        ['{{ key }}', '{{ name }}'],
+        {% endfor %}
+    ],
+    classification: [
+        {% for key, name in classification_models %}
+        ['{{ key }}', '{{ name }}'],
+        {% endfor %}
+    ],
+    clustering: [
+        {% for key, name in clustering_models %}
+        ['{{ key }}', '{{ name }}'],
+        {% endfor %}
+    ]
+};
+
+function updateModels() {
+    const task = document.getElementById('task_type').value;
+    const select = document.getElementById('model_name');
+    select.innerHTML = '';
+    models[task].forEach(([key, name]) => {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = name;
+        select.appendChild(opt);
+    });
+
+    document.getElementById('outputGroup').style.display = task === 'clustering' ? 'none' : 'block';
+    document.getElementById('kmeansParams').style.display = (task === 'clustering') ? 'block' : 'none';
+}
+
+function getSuggestions() {
+    const target = document.getElementById('output_column').value;
+    fetch(`{% url 'ml:suggest' dataset_pk=dataset.pk %}?target=${target}`)
+        .then(r => r.json())
+        .then(data => {
+            const el = document.getElementById('suggestions');
+            if (data.suggestions.length === 0) {
+                el.innerHTML = '<p class="text-muted">No suggestions available.</p>';
+                return;
+            }
+            el.innerHTML = data.suggestions.map(s =>
+                `<div class="suggestion-item" onclick="applySuggestion('${s.task}', '${s.model}')">
+                    <strong>${s.model}</strong> (${s.task}) — ${s.reason}
+                </div>`
+            ).join('');
+        });
+}
+
+function applySuggestion(task, model) {
+    document.getElementById('task_type').value = task;
+    updateModels();
+    document.getElementById('model_name').value = model;
+}
+
+document.getElementById('trainForm').addEventListener('submit', function() {
+    document.getElementById('trainBtn').querySelector('.btn-text').textContent = 'Training...';
+    document.getElementById('trainBtn').querySelector('.spinner').style.display = 'inline-block';
+    document.getElementById('trainBtn').disabled = true;
+});
+
+updateModels();
+</script>
+{% endblock %}

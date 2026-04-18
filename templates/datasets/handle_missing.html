@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Handle Missing Values - {{ dataset.name }}{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Handle Missing Values - {{ dataset.name }}</h2>
+
+    {% if missing_cols %}
+    <div class="section">
+        <h3>Columns with Missing Values</h3>
+        <div class="table-responsive">
+            <table class="table">
+                <thead><tr><th>Column</th><th>Missing Count</th></tr></thead>
+                <tbody>
+                    {% for col, count in missing_cols.items %}
+                    <tr><td>{{ col }}</td><td>{{ count }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <form method="post" class="form">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="strategy">Strategy</label>
+            <select id="strategy" name="strategy">
+                <option value="drop">Drop rows with missing values</option>
+                <option value="mean">Fill with mean (numeric only)</option>
+                <option value="median">Fill with median (numeric only)</option>
+                <option value="mode">Fill with mode (most frequent)</option>
+                <option value="zero">Fill with zero</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Apply to columns (leave unchecked for all)</label>
+            <div class="checkbox-group">
+                {% for col, count in missing_cols.items %}
+                <label class="checkbox-label">
+                    <input type="checkbox" name="columns" value="{{ col }}"> {{ col }} ({{ count }} missing)
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Apply</button>
+            <a href="{% url 'datasets:preview' pk=dataset.pk %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+    {% else %}
+    <p class="text-muted">No missing values found in this dataset.</p>
+    <a href="{% url 'datasets:preview' pk=dataset.pk %}" class="btn btn-secondary">Back to Preview</a>
+    {% endif %}
+</div>
+{% endblock %}

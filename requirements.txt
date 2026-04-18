@@ -1,0 +1,10 @@
+django==6.0.4
+pandas==3.0.2
+scikit-learn==1.8.0
+numpy==2.4.4
+plotly==6.7.0
+whitenoise==6.12.0
+gunicorn==25.3.0
+dj-database-url==3.1.2
+psycopg2-binary==2.9.11
+python-dotenv==1.2.2

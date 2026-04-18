@@ -1,0 +1,30 @@
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "analytics_platform/wsgi.py",
+            "use": "@vercel/python",
+            "config": {
+                "maxLambdaSize": "50mb",
+                "runtime": "python3.12"
+            }
+        },
+        {
+            "src": "build_files.sh",
+            "use": "@vercel/static-build",
+            "config": {
+                "distDir": "staticfiles"
+            }
+        }
+    ],
+    "routes": [
+        {
+            "src": "/static/(.*)",
+            "dest": "/staticfiles/$1"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "analytics_platform/wsgi.py"
+        }
+    ]
+}

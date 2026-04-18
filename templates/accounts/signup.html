@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}Sign Up - Analytics Platform{% endblock %}
+{% block content %}
+<div class="auth-container">
+    <h2>Create Account</h2>
+    <form method="post" class="form">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="form-group">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}
+            <small class="help-text">{{ field.help_text }}</small>
+            {% endif %}
+            {% for error in field.errors %}
+            <small class="error-text">{{ error }}</small>
+            {% endfor %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary">Sign Up</button>
+    </form>
+    <p class="auth-link">Already have an account? <a href="{% url 'accounts:login' %}">Login</a></p>
+</div>
+{% endblock %}

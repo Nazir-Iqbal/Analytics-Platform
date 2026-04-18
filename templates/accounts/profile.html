@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Profile - Analytics Platform{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Profile</h2>
+    <div class="profile-info">
+        <p><strong>Username:</strong> {{ user.username }}</p>
+        <p><strong>Email:</strong> {{ user.email|default:"Not set" }}</p>
+        <p><strong>Joined:</strong> {{ user.date_joined|date:"M d, Y" }}</p>
+    </div>
+
+    <h3>API Key</h3>
+    <div class="api-key-section">
+        <code class="api-key">{{ profile.api_key }}</code>
+        <form method="post" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" name="regenerate_key" class="btn btn-secondary btn-sm">Regenerate Key</button>
+        </form>
+    </div>
+    <small class="help-text">Use this key in the <code>X-API-Key</code> header for programmatic access.</small>
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Compare Models - {{ project.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>Compare Models - {{ project.name }}</h2>
+    <a href="{% url 'projects:detail' pk=project.pk %}" class="btn btn-secondary">Back to Project</a>
+</div>
+
+{% if comparisons %}
+<div class="table-responsive">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Model</th>
+                <th>Task</th>
+                <th>Dataset</th>
+                <th>Metrics</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in comparisons %}
+            <tr>
+                <td><a href="{% url 'ml:result' pk=c.id %}">{{ c.model }}</a></td>
+                <td><span class="badge badge-{{ c.task|lower }}">{{ c.task }}</span></td>
+                <td>{{ c.dataset }}</td>
+                <td>
+                    {% for k, v in c.metrics.items %}
+                    <span class="metric-inline">{{ k }}: {{ v }}</span>
+                    {% endfor %}
+                </td>
+                <td>{{ c.created|truncatechars:10 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h3>Metrics Comparison</h3>
+    <div id="compareChart" class="chart-container"></div>
+</div>
+{% else %}
+<div class="empty-state">
+    <p>No ML results to compare. Train some models first.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const comparisons = {{ comparisons_json|safe }};
+if (comparisons.length > 0) {
+    const allMetrics = new Set();
+    comparisons.forEach(c => Object.keys(c.metrics).forEach(k => allMetrics.add(k)));
+
+    const traces = [];
+    allMetrics.forEach(metric => {
+        traces.push({
+            x: comparisons.map(c => c.model),
+            y: comparisons.map(c => c.metrics[metric] || 0),
+            name: metric,
+            type: 'bar'
+        });
+    });
+
+    Plotly.newPlot('compareChart', traces, {
+        title: 'Model Metrics Comparison',
+        barmode: 'group',
+        template: 'plotly_white'
+    }, { responsive: true });
+}
+</script>
+{% endblock %}

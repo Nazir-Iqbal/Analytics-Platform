@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% block title %}Results - {{ result.get_model_name_display }}{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>{{ result.get_model_name_display }}</h2>
+        <p class="text-muted">
+            <span class="badge badge-{{ result.task_type }}">{{ result.get_task_type_display }}</span>
+            on {{ result.dataset.name }}
+        </p>
+    </div>
+    <div class="header-actions">
+        <a href="{% url 'ml:result_export' pk=result.pk %}" class="btn btn-secondary">Export JSON</a>
+        <a href="{% url 'ml:select' dataset_pk=result.dataset.pk %}" class="btn btn-secondary">Train Another</a>
+        <a href="{% url 'projects:detail' pk=result.project.pk %}" class="btn btn-secondary">Back to Project</a>
+    </div>
+</div>
+
+<div class="results-grid">
+    <div class="card">
+        <h3>Performance Metrics</h3>
+        <div class="metrics-grid">
+            {% for key, value in result.metrics.items %}
+            <div class="metric-card">
+                <span class="metric-label">{{ key }}</span>
+                <span class="metric-value">{{ value }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Configuration</h3>
+        <dl class="config-list">
+            <dt>Input Columns</dt>
+            <dd>{{ result.input_columns|join:", " }}</dd>
+            {% if result.output_column %}
+            <dt>Output Column</dt>
+            <dd>{{ result.output_column }}</dd>
+            {% endif %}
+            {% if result.parameters %}
+            <dt>Parameters</dt>
+            <dd>{% for k, v in result.parameters.items %}{{ k }}: {{ v }}{% if not forloop.last %}, {% endif %}{% endfor %}</dd>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Visualization</h3>
+    <div id="mainChart" class="chart-container"></div>
+    {% if result.task_type == 'regression' %}
+    <div id="residualChart" class="chart-container"></div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3>Predictions (first 100)</h3>
+    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-striped">
+            <thead><tr><th>#</th><th>Value</th></tr></thead>
+            <tbody id="predictionsTable"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const chartData = {{ chart_data_json|safe }};
+const metrics = {{ metrics_json|safe }};
+const predictions = {{ predictions_json|safe }};
+const taskType = '{{ result.task_type }}';
+
+// Populate predictions table
+const tbody = document.getElementById('predictionsTable');
+predictions.forEach((val, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i + 1}</td><td>${val}</td>`;
+    tbody.appendChild(tr);
+});
+
+// Charts
+if (taskType === 'regression') {
+    // Actual vs Predicted scatter
+    Plotly.newPlot('mainChart', [
+        {
+            x: chartData.actual_vs_predicted.actual,
+            y: chartData.actual_vs_predicted.predicted,
+            mode: 'markers',
+            type: 'scatter',
+            name: 'Predictions',
+            marker: { color: '#6366f1', size: 6, opacity: 0.7 }
+        },
+        {
+            x: [Math.min(...chartData.actual_vs_predicted.actual), Math.max(...chartData.actual_vs_predicted.actual)],
+            y: [Math.min(...chartData.actual_vs_predicted.actual), Math.max(...chartData.actual_vs_predicted.actual)],
+            mode: 'lines',
+            name: 'Perfect Prediction',
+            line: { color: '#ef4444', dash: 'dash' }
+        }
+    ], {
+        title: 'Actual vs Predicted',
+        xaxis: { title: 'Actual' },
+        yaxis: { title: 'Predicted' },
+        template: 'plotly_white'
+    }, { responsive: true });
+
+    // Residuals
+    Plotly.newPlot('residualChart', [{
+        y: chartData.residuals,
+        type: 'bar',
+        marker: { color: chartData.residuals.map(v => v >= 0 ? '#22c55e' : '#ef4444') }
+    }], {
+        title: 'Residuals',
+        yaxis: { title: 'Residual (Actual - Predicted)' },
+        template: 'plotly_white'
+    }, { responsive: true });
+
+} else if (taskType === 'classification') {
+    // Confusion-style bar chart
+    const labels = chartData.class_labels || [];
+    const actualCounts = {};
+    const predictedCounts = {};
+    chartData.actual.forEach(v => { actualCounts[v] = (actualCounts[v] || 0) + 1; });
+    chartData.predicted.forEach(v => { predictedCounts[v] = (predictedCounts[v] || 0) + 1; });
+
+    const categories = [...new Set([...Object.keys(actualCounts), ...Object.keys(predictedCounts)])].sort();
+    Plotly.newPlot('mainChart', [
+        {
+            x: categories.map(c => labels[c] || `Class ${c}`),
+            y: categories.map(c => actualCounts[c] || 0),
+            name: 'Actual',
+            type: 'bar',
+            marker: { color: '#6366f1' }
+        },
+        {
+            x: categories.map(c => labels[c] || `Class ${c}`),
+            y: categories.map(c => predictedCounts[c] || 0),
+            name: 'Predicted',
+            type: 'bar',
+            marker: { color: '#22c55e' }
+        }
+    ], {
+        title: 'Actual vs Predicted Distribution',
+        barmode: 'group',
+        template: 'plotly_white'
+    }, { responsive: true });
+
+} else if (taskType === 'clustering') {
+    const colors = chartData.labels.map(l => l === -1 ? '#999' : `hsl(${(l * 137) % 360}, 70%, 50%)`);
+    Plotly.newPlot('mainChart', [{
+        x: chartData.x,
+        y: chartData.y,
+        mode: 'markers',
+        type: 'scatter',
+        marker: { color: colors, size: 6, opacity: 0.7 },
+        text: chartData.labels.map(l => `Cluster ${l}`)
+    }], {
+        title: `Clustering Result (${metrics.n_clusters} clusters)`,
+        xaxis: { title: 'Component 1' },
+        yaxis: { title: 'Component 2' },
+        template: 'plotly_white'
+    }, { responsive: true });
+}
+</script>
+{% endblock %}

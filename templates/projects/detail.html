@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}{{ project.name }} - Analytics Platform{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>{{ project.name }}</h2>
+        <p class="text-muted">{{ project.description|default:"" }}</p>
+    </div>
+    <div class="header-actions">
+        <a href="{% url 'datasets:upload' project_pk=project.pk %}" class="btn btn-primary">Upload Dataset</a>
+        <a href="{% url 'ml:compare' project_pk=project.pk %}" class="btn btn-secondary">Compare Models</a>
+        <a href="{% url 'projects:edit' pk=project.pk %}" class="btn btn-secondary">Edit</a>
+        <a href="{% url 'projects:delete' pk=project.pk %}" class="btn btn-danger btn-sm">Delete</a>
+    </div>
+</div>
+
+<section class="section">
+    <h3>Datasets</h3>
+    {% if datasets %}
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Rows</th>
+                    <th>Columns</th>
+                    <th>Uploaded</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ds in datasets %}
+                <tr>
+                    <td><a href="{% url 'datasets:preview' pk=ds.pk %}">{{ ds.name }}</a></td>
+                    <td>{{ ds.rows }}</td>
+                    <td>{{ ds.columns }}</td>
+                    <td>{{ ds.uploaded_at|timesince }} ago</td>
+                    <td>
+                        <a href="{% url 'datasets:preview' pk=ds.pk %}" class="btn btn-sm btn-secondary">Preview</a>
+                        <a href="{% url 'ml:select' dataset_pk=ds.pk %}" class="btn btn-sm btn-primary">Train Model</a>
+                        <a href="{% url 'datasets:handle_missing' pk=ds.pk %}" class="btn btn-sm btn-secondary">Handle Missing</a>
+                        <a href="{% url 'datasets:delete' pk=ds.pk %}" class="btn btn-sm btn-danger">Delete</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted">No datasets yet. Upload a CSV to get started.</p>
+    {% endif %}
+</section>
+
+<section class="section">
+    <h3>ML Results</h3>
+    {% if ml_results %}
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Model</th>
+                    <th>Task</th>
+                    <th>Dataset</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in ml_results %}
+                <tr>
+                    <td><a href="{% url 'ml:result' pk=r.pk %}">{{ r.get_model_name_display }}</a></td>
+                    <td><span class="badge badge-{{ r.task_type }}">{{ r.get_task_type_display }}</span></td>
+                    <td>{{ r.dataset.name }}</td>
+                    <td>{{ r.created_at|timesince }} ago</td>
+                    <td>
+                        <a href="{% url 'ml:result' pk=r.pk %}" class="btn btn-sm btn-secondary">View</a>
+                        <a href="{% url 'ml:result_export' pk=r.pk %}" class="btn btn-sm btn-secondary">Export</a>
+                        <a href="{% url 'ml:result_delete' pk=r.pk %}" class="btn btn-sm btn-danger">Delete</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted">No ML results yet. Train a model on a dataset to see results.</p>
+    {% endif %}
+</section>
+{% endblock %}
