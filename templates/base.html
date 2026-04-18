@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,13 @@
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <script src="https://cdn.plot.ly/plotly-2.35.0.min.js"></script>
+    <script>
+        // Apply saved theme immediately to prevent flash
+        (function() {
+            const saved = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', saved);
+        })();
+    </script>
 </head>
 <body>
     <nav class="navbar">
@@ -14,6 +21,10 @@
             <a href="{% url 'projects:list' %}">Analytics Platform</a>
         </div>
         <div class="nav-links">
+            <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+                <span class="icon-sun">&#9728;</span>
+                <span class="icon-moon">&#9790;</span>
+            </button>
             {% if user.is_authenticated %}
                 <a href="{% url 'projects:list' %}">Projects</a>
                 <a href="{% url 'accounts:profile' %}">Profile</a>

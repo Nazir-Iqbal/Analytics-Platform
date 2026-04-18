@@ -51,6 +51,15 @@
 <script>
 const comparisons = {{ comparisons_json|safe }};
 if (comparisons.length > 0) {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const themeLayout = {
+        paper_bgcolor: isDark ? '#1e293b' : '#ffffff',
+        plot_bgcolor: isDark ? '#1e293b' : '#ffffff',
+        font: { color: isDark ? '#e2e8f0' : '#1e293b' },
+        xaxis: { gridcolor: isDark ? '#334155' : '#e2e8f0', color: isDark ? '#e2e8f0' : '#1e293b' },
+        yaxis: { gridcolor: isDark ? '#334155' : '#e2e8f0', color: isDark ? '#e2e8f0' : '#1e293b' },
+    };
+
     const allMetrics = new Set();
     comparisons.forEach(c => Object.keys(c.metrics).forEach(k => allMetrics.add(k)));
 
@@ -64,11 +73,10 @@ if (comparisons.length > 0) {
         });
     });
 
-    Plotly.newPlot('compareChart', traces, {
+    Plotly.newPlot('compareChart', traces, Object.assign({
         title: 'Model Metrics Comparison',
         barmode: 'group',
-        template: 'plotly_white'
-    }, { responsive: true });
+    }, themeLayout), { responsive: true });
 }
 </script>
 {% endblock %}
