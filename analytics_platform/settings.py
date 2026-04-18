@@ -69,12 +69,37 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'analytics_platform.wsgi.application'
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
-        conn_max_age=600,
-    )
-}
+# Configure database:
+# - If DATABASE_URL is provided (recommended for production), use it.
+# - On Vercel or other serverless without DATABASE_URL, fall back to a
+#   temporary sqlite file under /tmp to avoid "unable to open database file"
+#   during runtime. Note: /tmp is ephemeral and will not persist between
+#   deployments — for production use a managed DB (Postgres, MySQL, etc.).
+if os.environ.get('DATABASE_URL'):
+    DATABASES = {
+        'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'), conn_max_age=600)
+    }
+else:
+    # Detect Vercel environment via VERCEL_URL or VERCEL env var
+    if os.environ.get('VERCEL') or os.environ.get('VERCEL_URL'):
+        tmp_db = Path('/tmp') / 'db.sqlite3'
+        try:
+            tmp_db.parent.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': str(tmp_db),
+            }
+        }
+    else:
+        DATABASES = {
+            'default': dj_database_url.config(
+                default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
+                conn_max_age=600,
+            )
+        }
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -102,6 +127,13 @@ STORAGES = {
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+# If running on Vercel or other ephemeral host, use /tmp for media to ensure writable path
+if os.environ.get('VERCEL') or os.environ.get('VERCEL_URL'):
+    try:
+        Path('/tmp/media').mkdir(parents=True, exist_ok=True)
+        MEDIA_ROOT = Path('/tmp/media')
+    except Exception:
+        pass
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
